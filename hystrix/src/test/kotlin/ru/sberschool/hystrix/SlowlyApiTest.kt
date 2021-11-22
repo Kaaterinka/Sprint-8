@@ -21,6 +21,14 @@ class SlowlyApiTest {
         // для удобства тестирования задаем таймауты на 1 секунду
         .options(Request.Options(1, TimeUnit.SECONDS, 1, TimeUnit.SECONDS, true))
         .target(SlowlyApi::class.java, "http://127.0.0.1:18080", FallbackSlowlyApi())
+
+    private val realClient: SlowlyApi = HystrixFeign.builder()
+        .client(ApacheHttpClient())
+        .decoder(JacksonDecoder())
+        // для удобства тестирования задаем таймауты на 1 секунду
+        .options(Request.Options(1, TimeUnit.SECONDS, 1, TimeUnit.SECONDS, true))
+        .target(SlowlyApi::class.java, "https://pokeapi.co/api/v2", FallbackSlowlyApi())
+
     lateinit var mockServer: ClientAndServer
 
     @BeforeEach
@@ -35,14 +43,14 @@ class SlowlyApiTest {
     }
 
     @Test
-    fun `getSomething() should return predefined data`() {
+    fun `getPokeApi() should return Fallback data`() {
         // given
         MockServerClient("127.0.0.1", 18080)
             .`when`(
                 // задаем матчер для нашего запроса
                 HttpRequest.request()
                     .withMethod("GET")
-                    .withPath("/")
+                    .withPath("/pokeapi.co")
             )
             .respond(
                 // наш запрос попадает на таймаут
@@ -51,6 +59,12 @@ class SlowlyApiTest {
                     .withDelay(TimeUnit.SECONDS, 30) //
             )
         // expect
-        assertEquals("predefined data", client.getSomething().data)
+        assertEquals("Fallback", client.getPokeApi().data)
     }
+
+    @Test
+    fun `client are working`(){
+        assertEquals("bulbasaur", realClient.getPokeApi().data)
+    }
+
 }
